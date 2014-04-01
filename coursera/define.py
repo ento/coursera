@@ -12,6 +12,7 @@ AUTH_URL = 'https://accounts.coursera.org/api/v1/login'
 CLASS_URL = 'https://class.coursera.org/{class_name}'
 ABOUT_URL = 'https://www.coursera.org/maestro/api/topic/information?' \
             'topic-id={class_name}'
+THREAD_URL = CLASS_URL + '/api/forum/threads/{thread_id}'
 AUTH_REDIRECT_URL = 'https://class.coursera.org/{class_name}' \
                     '/auth/auth_redirector?type=login&subtype=normal'
 

@@ -50,6 +50,8 @@ import subprocess
 import sys
 import time
 import glob
+import tempfile
+import gzip
 
 from distutils.version import LooseVersion as V
 
@@ -72,7 +74,7 @@ from .cookies import (
     AuthenticationFailed, ClassNotFound,
     get_cookies_for_class, make_cookie_values)
 from .credentials import get_credentials, CredentialsError
-from .define import CLASS_URL, ABOUT_URL, PATH_CACHE
+from .define import CLASS_URL, ABOUT_URL, THREAD_URL, PATH_CACHE
 from .downloaders import get_downloader
 from .utils import clean_filename, get_anchor_format, mkdir_p, fix_url
 
@@ -433,6 +435,62 @@ def download_lectures(downloader,
     return False
 
 
+def download_forum(downloader,
+                   class_name,
+                   verbose_dirs=False,
+                   sleep_interval=1,
+                   ):
+    """
+    Download all forum threads.
+    """
+    def secure_filename(s):
+        return "".join([c for c in s if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+
+    def format_thread(thread_id, title, crumbs):
+        parts = list(crumbs)
+        if verbose_dirs:
+            parts.insert(0, class_name.upper())
+        filename = '%d_%s.json' % (thread_id, secure_filename(title))
+        return '/'.join(parts), filename
+
+    with tempfile.NamedTemporaryFile() as part:
+        thread_id = 1
+        while True:
+            thread_url = THREAD_URL.format(
+                class_name=class_name,
+                thread_id=thread_id)
+            response = ''
+            try:
+                downloader.download(thread_url, part.name)
+                #with gzip.open(part.name, 'rb') as f:
+                with open(part.name, 'rb') as f:
+                    response = f.read()
+            except Exception, e:
+                if 'private' in response or 'deleted' in response:
+                    thread_id += 1
+                    continue
+                print e
+                break
+
+            crumbs = [crumb['title'] for crumb in thread['crumbs']]
+            base_dir, filename = format_thread(
+                thread_id,
+                thread['title'],
+                crumbs)
+            if not os.path.isdir(base_dir):
+                os.makedirs(base_dir)
+            thread_fn = os.path.join(base_dir, filename)
+            shutil.copyfile(part.name, thread_fn)
+            #with open(os.path.join(base_dir, filename), 'w') as f:
+            #    f.write(s)
+
+            logging.info('Downloaded %s', thread_fn)
+            thread_id += 1
+            if sleep_interval:
+                time.sleep(sleep_interval)
+    return True
+
+
 def total_seconds(td):
     """
     Compute total seconds for a timedelta.
@@ -492,6 +550,16 @@ def parseArgs():
                         action='store_true',
                         default=False,
                         help='download "about" metadata. (Default: False)')
+    parser.add_argument('--forum',
+                        dest='forum',
+                        action='store_true',
+                        default=False,
+                        help='download forum. (Default: False)')
+    parser.add_argument('--lecture',
+                        dest='lecture',
+                        action='store_true',
+                        default=False,
+                        help='download lectures. (Default: False)')
     parser.add_argument('-b',
                         '--preview',
                         dest='preview',
@@ -730,23 +798,31 @@ def download_class(args, class_name):
     downloader = get_downloader(session, class_name, args)
 
     # obtain the resources
-    completed = download_lectures(
-        downloader,
-        class_name,
-        sections,
-        args.file_formats,
-        args.overwrite,
-        args.skip_download,
-        args.section_filter,
-        args.lecture_filter,
-        args.resource_filter,
-        args.path,
-        args.verbose_dirs,
-        args.preview,
-        args.combined_section_lectures_nums,
-        args.hooks,
-        args.playlist,
-        args.intact_fnames)
+    completed = True
+    if args.forum:
+        completed = completed and download_forum(
+            downloader,
+            class_name,
+            args.verbose_dirs,
+        )
+    if args.lecture:
+        completed = completed and download_lectures(
+            downloader,
+            class_name,
+            sections,
+            args.file_formats,
+            args.overwrite,
+            args.skip_download,
+            args.section_filter,
+            args.lecture_filter,
+            args.resource_filter,
+            args.path,
+            args.verbose_dirs,
+            args.preview,
+            args.combined_section_lectures_nums,
+            args.hooks,
+            args.playlist,
+            args.intact_fnames)
 
     return completed
 
