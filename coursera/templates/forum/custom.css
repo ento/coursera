@@ -1,0 +1,45 @@
+form.search {
+    float: right;
+    height: 16px;
+    padding-top: 15px;
+}
+
+form.search input[type=text] {
+    width: 20em;
+}
+
+form.search input {
+    font-size: 16px;
+    padding: 5px;
+}
+
+.text-container {
+    margin-bottom: 12px;
+}
+
+.text-container .text-container-header {
+    background: #e6e6e6;
+    padding: 6px;
+    margin-bottom: 10px;
+}
+
+.text-container.text-container-post {
+    margin-top: 20px;
+}
+
+.text-container.text-container-comment {
+    margin-left: 5em;
+}
+
+.profile-badge {
+    background: #3c4f61;
+    color: #fff;
+    display: inline-block;
+    font-size: 10px;
+    font-weight: normal;
+    line-height: inherit;
+    margin: 0 4px 0 6px;
+    padding: 1px 3px 2px;
+    text-transform: uppercase;
+    vertical-align: middle;
+}

@@ -17,6 +17,8 @@ class TestForum(unittest.TestCase):
     # todo: test private/deleted thread
     # todo: test long threads
     # todo: test subforum filter
+    # todo: test hyperlink
+    # todo: test mathjax?
     def setUp(self):
         self.downloader = downloaders.ExternalDownloader(None, bin='mock')
         self.class_name = 'ml-001'
@@ -79,26 +81,26 @@ class TestForum(unittest.TestCase):
         json_fn = os.path.join(json_dir, '1.json')
         with open(json_fn) as f:
             open_mock = mock_open(read_data=f.read())
-        copy_mock = MagicMock()
         call_mock = MagicMock()
         with patch('coursera.forum.get_json_dir', return_value=json_dir),\
-             patch('coursera.forum.open', open_mock, create=True),\
-             patch('shutil.copyfile', copy_mock),\
+             patch('codecs.open', open_mock),\
+             patch('os.path.isdir', return_value=False),\
+             patch('os.path.isfile', return_value=False),\
+             patch('coursera.utils.mkdir_p'),\
              patch('subprocess.call', call_mock):
             forum.generate_forum(self.class_name)
         # should write rst file
         open_mock.assert_any_call(json_fn)
-        open_mock.assert_any_call(os.path.join('forum', 'rst', 'Video Lectures', 'Week 5 Lectures', '1_Egg and me.rst'), 'w')
+        open_mock.assert_any_call(os.path.join('forum', 'rst', 'Video Lectures', 'Week 5 Lectures', '1_Egg_and_me.rst'), 'w')
+        # should write subforum index
+        open_mock.assert_any_call(os.path.join('forum', 'rst', 'Video Lectures', 'Week 5 Lectures', 'index.rst'), 'w')
+        open_mock.assert_any_call(os.path.join('forum', 'rst', 'Video Lectures', 'index.rst'), 'w')
+        # should write global index
+        open_mock.assert_any_call(os.path.join('forum', 'rst', 'index.rst'), 'w')
         # should write sphinx conf
-        copy_mock.assert_called_once_with(
-            os.path.join(
-                os.path.dirname(coursera_dl.__file__),
-                'assets',
-                'conf.py',
-            ),
-            os.path.join('forum', 'conf.py'))
+        open_mock.assert_any_call(os.path.join('forum', 'rst', 'conf.py'), 'w')
         # should invoke sphinx-build
         call_mock.assert_called_once_with(
-            ['sphinx-build', '-b', 'rst', 'html'],
+            ['sphinx-build', '-b', 'html', 'rst', 'html'],
             cwd='forum',
         )

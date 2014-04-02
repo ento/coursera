@@ -439,7 +439,6 @@ def download_lectures(downloader,
 class EndOfForumError(Exception): pass
 
 
-
 def download_forum(downloader,
                    class_name,
                    verbose_dirs=False,
@@ -452,22 +451,22 @@ def download_forum(downloader,
     def format_json_fn(thread_id):
         return '%d.json' % thread_id
 
-    def should_skip(thread_fn):
+    def check_end_of_forum(thread_fn):
         if not os.path.isfile(thread_fn):
-            return True
+            return
         # if native downloader:
         #with gzip.open(part.name, 'rb') as f:
         with open(thread_fn, 'rb') as f:
             first_char = f.read(1)
             if first_char[0] == '{':
-                return True
+                return
             f.seek(0)
             response = f.read()
             if 'private' in response or 'deleted' in response:
-                return True
+                return
             if 'Unexpected API error' in response:
                 raise EndOfForumError()
-            raise Exception('Not JSON: %s' % response)
+            raise Exception('Not a JSON or a known error response: %s' % response)
 
     def sleep():
         if sleep_interval:
@@ -487,8 +486,7 @@ def download_forum(downloader,
         response = ''
         try:
             downloader.download(thread_url, thread_fn)
-            if should_skip(thread_fn):
-                continue
+            check_end_of_forum(thread_fn)
         except EndOfForumError:
             break
         except Exception, e:

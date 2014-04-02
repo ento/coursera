@@ -1,0 +1,13 @@
+{% raw %}
+{% extends "haiku/layout.html" %}
+
+{%-block haikuheader %}
+<form class="search" action="{{ pathto('search') }}" method="get">
+  <input type="text" name="q" />
+  <input type="submit" value="{{ _('Go') }}" />
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+{{ super() }}
+{%-endblock %}
+{% endraw %}
