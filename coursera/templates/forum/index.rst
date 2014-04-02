@@ -1,5 +1,7 @@
 .. _{{ title }}:
 
+:doc:`/index`{% if crumbs %}{% for crumb in crumbs[:-1] %} / :ref:`{{ crumb }}`{% endfor %}{% endif %}
+
 {{ title }}
 {{ '=' * title|length }}
 

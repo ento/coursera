@@ -1,5 +1,8 @@
 {%-from 'forum/macros.rst' import render_post-%}
 .. _{{ title }}:
+.. _thread_{{ id }}:
+
+:doc:`/index` {% for crumb in crumbs[1:] %} / :ref:`{{ crumb.title }}`{% endfor %}
 
 {{ title }}
 {{ '=' * title|length }}

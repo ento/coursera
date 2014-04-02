@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
+'''
+Forum archive generator.
 
+todo:
+
+* long threads
+* hyperlink
+  https://class.coursera.org/ml-004/forum/list?forum_id=10001
+  https://class.coursera.org/ml-004/forum/thread?thread_id=1129
+* ssl handshake error
+* subforum filter
+* thread tags
+* forum ordering (need to fetch forum info)
+
+'''
 
 import os
 import datetime
@@ -61,6 +75,14 @@ def get_jinja_env():
     return env
 
 
+def render_thread(template, thread):
+    thread['comments_by_post'] = {
+        key: list(comments)
+        for key, comments in itertools.groupby(
+                thread['comments'], operator.itemgetter('post_id'))}
+    return thread_template.render(**thread)
+
+
 def generate_forum(class_name, verbose_dirs=False, max_threads=None):
     def format_thread_fn(thread_id, title, crumbs):
         filename = '%d_%s.rst' % (thread_id, utils.clean_filename(title))
@@ -71,7 +93,6 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
     json_dir = get_json_dir(class_name, verbose_dirs)
     rst_dir = get_rst_dir(class_name, verbose_dirs)
     thread_template = env.get_template('forum/thread.rst')
-    toctree_entry_template = env.get_template('forum/toctree_entry.rst')
     index_template = env.get_template('forum/index.rst')
 
     utils.mkdir_p(rst_dir)
@@ -84,14 +105,10 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
         if max_threads and i >= max_threads:
             break
         try:
-            with open(json_fn) as f:
+            with codecs.open(json_fn, 'r', 'utf-8') as f:
                 thread = json.load(f)
         except ValueError:
             continue
-        thread['comments_by_post'] = {
-            key: list(comments)
-            for key, comments in itertools.groupby(
-                    thread['comments'], operator.itemgetter('post_id'))}
         base_dir, filename = format_thread_fn(
             thread['id'],
             thread['title'],
@@ -99,7 +116,7 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
         utils.mkdir_p(base_dir)
         thread_fn = os.path.join(base_dir, filename)
         with codecs.open(thread_fn, 'w', 'utf-8') as f:
-            f.write(thread_template.render(**thread))
+            f.write(render_thread(thread_template, thread))
         # build toctree
         basename, _ = os.path.splitext(filename)
         subforums = os.path.split(os.path.relpath(base_dir, rst_dir))
@@ -119,9 +136,10 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
         yield path, items
         for _, key in items:
             subtree = tree[key]
-            if subtree:
-                for subpath, entries in walk_tree(subtree, path + [key]):
-                    yield subpath, entries
+            if not subtree:
+                continue
+            for subpath, entries in walk_tree(subtree, path + [key]):
+                yield subpath, entries
 
     for path, entries in walk_tree(toctrees):
         base_dir = os.path.join(rst_dir, *path)
@@ -130,7 +148,7 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
         if path:
             title = path[-1]
         with codecs.open(index_fn, 'w', 'utf-8') as f:
-            index = index_template.render(title=title, entries=entries)
+            index = index_template.render(title=title, crumbs=path, entries=entries)
             f.write(index)
 
     # copy conf
