@@ -50,8 +50,8 @@ import subprocess
 import sys
 import time
 import glob
-import tempfile
 import gzip
+import random
 
 from distutils.version import LooseVersion as V
 
@@ -76,6 +76,7 @@ from .cookies import (
 from .credentials import get_credentials, CredentialsError
 from .define import CLASS_URL, ABOUT_URL, THREAD_URL, PATH_CACHE
 from .downloaders import get_downloader
+from .forum import get_json_dir, generate_forum
 from .utils import clean_filename, get_anchor_format, mkdir_p, fix_url
 
 # URL containing information about outdated modules
@@ -435,59 +436,70 @@ def download_lectures(downloader,
     return False
 
 
+class EndOfForumError(Exception): pass
+
+
+
 def download_forum(downloader,
                    class_name,
                    verbose_dirs=False,
-                   sleep_interval=1,
+                   from_thread_id=None,
+                   sleep_interval=3,
                    ):
     """
     Download all forum threads.
     """
-    def secure_filename(s):
-        return "".join([c for c in s if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+    def format_json_fn(thread_id):
+        return '%d.json' % thread_id
 
-    def format_thread(thread_id, title, crumbs):
-        parts = list(crumbs)
-        if verbose_dirs:
-            parts.insert(0, class_name.upper())
-        filename = '%d_%s.json' % (thread_id, secure_filename(title))
-        return '/'.join(parts), filename
+    def should_skip(thread_fn):
+        if not os.path.isfile(thread_fn):
+            return True
+        # if native downloader:
+        #with gzip.open(part.name, 'rb') as f:
+        with open(thread_fn, 'rb') as f:
+            first_char = f.read(1)
+            if first_char[0] == '{':
+                return True
+            f.seek(0)
+            response = f.read()
+            if 'private' in response or 'deleted' in response:
+                return True
+            if 'Unexpected API error' in response:
+                raise EndOfForumError()
+            raise Exception('Not JSON: %s' % response)
 
-    with tempfile.NamedTemporaryFile() as part:
-        thread_id = 1
-        while True:
-            thread_url = THREAD_URL.format(
-                class_name=class_name,
-                thread_id=thread_id)
-            response = ''
-            try:
-                downloader.download(thread_url, part.name)
-                #with gzip.open(part.name, 'rb') as f:
-                with open(part.name, 'rb') as f:
-                    response = f.read()
-            except Exception, e:
-                if 'private' in response or 'deleted' in response:
-                    thread_id += 1
-                    continue
-                print e
-                break
+    def sleep():
+        if sleep_interval:
+            secs = sleep_interval + random.randint(0, sleep_interval)
+            logging.debug('Sleeping %d secs', secs)
+            time.sleep(secs)
 
-            crumbs = [crumb['title'] for crumb in thread['crumbs']]
-            base_dir, filename = format_thread(
-                thread_id,
-                thread['title'],
-                crumbs)
-            if not os.path.isdir(base_dir):
-                os.makedirs(base_dir)
-            thread_fn = os.path.join(base_dir, filename)
-            shutil.copyfile(part.name, thread_fn)
-            #with open(os.path.join(base_dir, filename), 'w') as f:
-            #    f.write(s)
-
-            logging.info('Downloaded %s', thread_fn)
+    json_dir = get_json_dir(class_name, verbose_dirs)
+    if not os.path.isdir(json_dir):
+        os.makedirs(json_dir)
+    thread_id = from_thread_id or 1
+    while True:
+        thread_url = THREAD_URL.format(
+            class_name=class_name,
+            thread_id=thread_id)
+        thread_fn = os.path.join(json_dir, format_json_fn(thread_id))
+        response = ''
+        try:
+            downloader.download(thread_url, thread_fn)
+            if should_skip(thread_fn):
+                continue
+        except EndOfForumError:
+            break
+        except Exception, e:
+            logging.error('Error downloading %s: %r', thread_fn, e)
+            break
+        else:
             thread_id += 1
-            if sleep_interval:
-                time.sleep(sleep_interval)
+            sleep()
+
+        logging.info('Downloaded %s', thread_fn)
+
     return True
 
 
@@ -555,6 +567,16 @@ def parseArgs():
                         action='store_true',
                         default=False,
                         help='download forum. (Default: False)')
+    parser.add_argument('--forum-viewer',
+                        dest='forum_viewer',
+                        action='store_true',
+                        default=False,
+                        help='generate forum viewer. (Default: False)')
+    parser.add_argument('--from-thread-id',
+                        dest='from_thread_id',
+                        type=int,
+                        default=1,
+                        help='starting thread id. (Default: 1)')
     parser.add_argument('--lecture',
                         dest='lecture',
                         action='store_true',
@@ -802,6 +824,12 @@ def download_class(args, class_name):
     if args.forum:
         completed = completed and download_forum(
             downloader,
+            class_name,
+            args.verbose_dirs,
+            args.from_thread_id,
+        )
+    if args.forum_viewer:
+        completed = completed and generate_forum(
             class_name,
             args.verbose_dirs,
         )

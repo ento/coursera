@@ -138,7 +138,7 @@ class CurlDownloader(ExternalDownloader):
         command.extend(['--cookie', cookie_values])
 
     def _create_command(self, url, filename):
-        return [self.bin, url, '-k', '-#', '-L', '-o', filename]
+        return [self.bin, url, '--verbose', '--stderr', 'curl.log', '-k', '-#', '-L', '-o', filename]
 
 
 class Aria2Downloader(ExternalDownloader):
