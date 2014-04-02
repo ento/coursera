@@ -787,12 +787,7 @@ def parseArgs():
     return args
 
 
-def download_class(args, class_name):
-    """
-    Download all requested resources from the class given in class_name.
-    Returns True if the class appears completed.
-    """
-
+def get_session(args, class_name):
     session = requests.Session()
 
     if args.preview:
@@ -806,18 +801,30 @@ def download_class(args, class_name):
             username=args.username, password=args.password
         )
         session.cookie_values = make_cookie_values(session.cookies, class_name)
+    return session
 
-    # get the syllabus listing
-    page = get_syllabus(session, class_name, args.local_page, args.preview)
 
-    # parse it
-    sections = parse_syllabus(session, page, args.reverse,
-                              args.intact_fnames)
+def download_class(args, class_name):
+    """
+    Download all requested resources from the class given in class_name.
+    Returns True if the class appears completed.
+    """
+    if args.about or args.lecture or args.forum:
+        session = get_session(args, class_name)
+
+    if args.lecture:
+        # get the syllabus listing
+        page = get_syllabus(session, class_name, args.local_page, args.preview)
+
+        # parse it
+        sections = parse_syllabus(session, page, args.reverse,
+                                  args.intact_fnames)
 
     if args.about:
         download_about(session, class_name, args.path, args.overwrite)
 
-    downloader = get_downloader(session, class_name, args)
+    if args.lecture or args.forum:
+        downloader = get_downloader(session, class_name, args)
 
     # obtain the resources
     completed = True
