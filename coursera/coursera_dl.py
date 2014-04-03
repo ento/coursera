@@ -448,8 +448,41 @@ def download_forum(downloader,
     """
     Download all forum threads.
     """
-    def format_json_fn(thread_id):
-        return '%d.json' % thread_id
+    json_dir = get_json_dir(class_name, verbose_dirs)
+    if not os.path.isdir(json_dir):
+        os.makedirs(json_dir)
+    thread_id = from_thread_id or 1
+    complete = False
+    while True:
+        try:
+            download_thread(
+                downloader,
+                class_name,
+                thread_id,
+                json_dir,
+                sleep_interval=sleep_interval,
+            )
+        except EndOfForumError:
+            complete = True
+            break
+        except Exception, e:
+            logging.error('Error downloading thread %d: %r', thread_id, e)
+            break
+        else:
+            thread_id += 1
+
+    return complete
+
+
+def download_thread(downloader, class_name, thread_id, base_dir, max_pages=10, sleep_interval=3):
+    def sleep():
+        if sleep_interval:
+            secs = sleep_interval + random.randint(0, sleep_interval)
+            logging.debug('Sleeping %d secs', secs)
+            time.sleep(secs)
+
+    def format_json_fn(thread_id, page):
+        return '%d-%d.json' % (thread_id, page)
 
     def check_end_of_forum(thread_fn):
         if not os.path.isfile(thread_fn):
@@ -468,37 +501,39 @@ def download_forum(downloader,
                 raise EndOfForumError()
             raise Exception('Not a JSON or a known error response: %s' % response)
 
-    def sleep():
-        if sleep_interval:
-            secs = sleep_interval + random.randint(0, sleep_interval)
-            logging.debug('Sleeping %d secs', secs)
-            time.sleep(secs)
+    def get_next_post_id(thread):
+        placeholder = None
+        for post in reversed(thread.get('posts', [])):
+            if 'thread_id' not in post:
+                placeholder = post
+            else:
+                break
+        return None if not placeholder else placeholder['id']
 
-    json_dir = get_json_dir(class_name, verbose_dirs)
-    if not os.path.isdir(json_dir):
-        os.makedirs(json_dir)
-    thread_id = from_thread_id or 1
-    while True:
-        thread_url = THREAD_URL.format(
-            class_name=class_name,
-            thread_id=thread_id)
-        thread_fn = os.path.join(json_dir, format_json_fn(thread_id))
-        response = ''
-        try:
-            downloader.download(thread_url, thread_fn)
-            check_end_of_forum(thread_fn)
-        except EndOfForumError:
-            break
-        except Exception, e:
-            logging.error('Error downloading %s: %r', thread_fn, e)
-            break
-        else:
-            thread_id += 1
+    thread_url = THREAD_URL.format(
+        class_name=class_name,
+        thread_id=thread_id)
+    page = 1
+    next_post_id = None
+    while page <= max_pages:
+        thread_fn = os.path.join(base_dir, format_json_fn(thread_id, page))
+        query = ''
+        if next_post_id:
+            query = '?post_id={0}&position=after'.format(next_post_id)
+        if not os.path.exists(thread_fn):
             sleep()
-
+            downloader.download(thread_url + query, thread_fn)
         logging.info('Downloaded %s', thread_fn)
-
-    return True
+        if page == 1:
+            check_end_of_forum(thread_fn)
+        try:
+            with open(thread_fn) as f:
+                thread = json.load(f)
+        except:
+            break
+        max_pages = min(max_pages, thread.get('num_pages', 1))
+        next_post_id = get_next_post_id(thread)
+        page += 1
 
 
 def total_seconds(td):
