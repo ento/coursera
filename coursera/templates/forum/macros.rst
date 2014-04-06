@@ -2,7 +2,7 @@
 {%-set style_class = 'post' if not is_comment else 'comment' %}
 .. raw:: html
 
-   <div class="text-container text-container-{{ style_class }}">
+   <div class="text-container text-container-{{ style_class }}" id="{{ style_class }}-{{ post.id }}">
     <div class="text-container-header">
       {% if post.anonymous %}Anonymous{% else %}{{ post._user_full_name }}{% endif %}
       {%-if post._user_title and post._user_title != 'Student' %}<span class="profile-badge">{{ post._user_title }}</span>{%-endif %}
