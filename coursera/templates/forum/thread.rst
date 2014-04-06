@@ -10,7 +10,7 @@
   {{-render_post(post)-}}
   {%-if post.id in comments_by_post %}
     {%-for comment in comments_by_post[post.id] if 'comment_text' in comment and not comment.deleted %}
-      {{-render_post(comment, comment=True)-}}
+      {{-render_post(comment, is_comment=True)-}}
     {%-endfor %}
   {%-endif %}
 {%-endfor %}

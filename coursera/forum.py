@@ -32,8 +32,8 @@ from . import utils
 
 
 @evalcontextfilter
-def post_to_html(eval_ctx, post, comment=False):
-    text = post['post_text' if not comment else 'comment_text']
+def post_to_html(eval_ctx, post, is_comment=False):
+    text = post['post_text' if not is_comment else 'comment_text']
     if post['text_type'] == 'markdown':
         text = markdown.markdown(text)
     if eval_ctx.autoescape:
