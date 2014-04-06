@@ -5,7 +5,7 @@
    <div class="text-container text-container-{{ style_class }}">
     <div class="text-container-header">
       {% if post.anonymous %}Anonymous{% else %}{{ post._user_full_name }}{% endif %}
-      {%-if post._user_title != 'Student' %}<span class="profile-badge">{{ post._user_title }}</span>{%-endif %}
+      {%-if post._user_title and post._user_title != 'Student' %}<span class="profile-badge">{{ post._user_title }}</span>{%-endif %}
       &middot; {{ post.post_time|timestamp }}
      </div>
 {{ post|html(is_comment)|safe|indent(3, true) }}
