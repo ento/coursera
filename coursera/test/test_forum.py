@@ -169,5 +169,132 @@ class TestForum(unittest.TestCase):
             cwd='forum',
         )
 
+    def test_prepare_thread_thread_hyperlinking(self):
+        thread = {
+            'comments': [
+                {
+                    'post_id': 1,
+                    'title': 'link to parent thread',
+                    'post_text': '<a href="https://class.coursera.org/ml-001/forum/thread?thread_id=10"></a>',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to cousin thread',
+                    'post_text': '<a href="/ml-001/forum/thread?thread_id=11"></a>',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to sibling thread',
+                    'post_text': '/ml-001/forum/thread?thread_id=12',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to child thread',
+                    'post_text': '[here](/ml-001/forum/thread?thread_id=13)',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to non-existent thread',
+                    'post_text': '[here](https://class.coursera.org/ml-001/forum/thread?thread_id=14)',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to thread from another class',
+                    'post_text': '[here](https://class.coursera.org/ml-002/forum/thread?thread_id=10)',
+                },
+            ],
+        }
+        thread['posts'] = thread['comments']
+        context = {
+            'class_name': self.class_name,
+            'path': 'Subforum/1_me.html',
+            'threads': {
+                10: {
+                    'path': '10_parent.html',
+                },
+                11: {
+                    'path': 'Parent Forum/11_cousin.html',
+                },
+                12: {
+                    'path': 'Subforum/12_sibling.html',
+                },
+                13: {
+                    'path': 'Subforum/Sibling Forum/13_nephew.html',
+                },
+            }
+        }
+        forum.prepare_thread(thread, context)
+        for key in ['posts', 'comments']:
+            ok_('../10_parent.html' in thread[key][0]['post_text'])
+            ok_('../Parent Forum/11_cousin.html' in thread[key][1]['post_text'])
+            ok_('12_sibling.html' in thread[key][2]['post_text'])
+            ok_('Sibling Forum/13_nephew.html' in thread[key][3]['post_text'])
+            ok_('thread_id=14' in thread[key][4]['post_text'])
+            ok_('thread_id=10' in thread[key][5]['post_text'])
+
+    def test_prepare_thread_forum_hyperlinking(self):
+        thread = {
+            'comments': [
+                {
+                    'post_id': 1,
+                    'title': 'link to parent forum',
+                    'post_text': '<a href="https://class.coursera.org/ml-001/forum/list?forum_id=10"></a>',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to cousin forum',
+                    'post_text': '<a href="/ml-001/forum/list?forum_id=11"></a>',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to sibling forum',
+                    'post_text': '/ml-001/forum/list?forum_id=12',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to nephew forum',
+                    'post_text': '[here](/ml-001/forum/list?forum_id=13)',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to non-existent forum',
+                    'post_text': '[here](https://class.coursera.org/ml-001/forum/list?forum_id=14)',
+                },
+                {
+                    'post_id': 1,
+                    'title': 'link to forum from another class',
+                    'post_text': '[here](https://class.coursera.org/ml-002/forum/list?forum_id=10)',
+                },
+            ],
+        }
+        thread['posts'] = thread['comments']
+        context = {
+            'class_name': self.class_name,
+            'path': 'Subforum/1_me.html',
+            'forums': {
+                10: {
+                    'path': 'Parent Forum/index.html',
+                },
+                11: {
+                    'path': 'Parent Forum/Cousin Forum/index.html',
+                },
+                12: {
+                    'path': 'Subforum/Sibling Forum/index.html',
+                },
+                13: {
+                    'path': 'Subforum/Sibling Forum/Nephew Forum/index.html',
+                },
+            }
+        }
+        forum.prepare_thread(thread, context)
+        for key in ['posts', 'comments']:
+            ok_('../Parent Forum/index.html' in thread[key][0]['post_text'])
+            ok_('../Parent Forum/Cousin Forum/index.html' in thread[key][1]['post_text'])
+            ok_('Sibling Forum/index.html' in thread[key][2]['post_text'])
+            ok_('Sibling Forum/Nephew Forum/index.html' in thread[key][3]['post_text'])
+            ok_('forum_id=14' in thread[key][4]['post_text'])
+            ok_('forum_id=10' in thread[key][5]['post_text'])
+
+
     def test_escape_punctutation(self):
         eq_('a\\*', forum.escape_punctuation('a*'))

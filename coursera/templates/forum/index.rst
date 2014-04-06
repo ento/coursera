@@ -8,5 +8,5 @@
 .. toctree::
    :maxdepth: 1
 {% for entry, ref in entries %}
-   {{ entry.filename }}{% if entry.is_forum %}/index{% endif %}
+   {{ entry.basename }}{% if entry.is_forum %}/index{% endif %}
 {%-endfor %}

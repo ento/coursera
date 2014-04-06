@@ -33,6 +33,7 @@ import markdown
 from . import utils
 
 
+hyperlink_re = re.compile(r'(https?://class.coursera.org)?/(?P<class_name>[-\w]+)/forum/(thread|list)\?(?P<type>thread|forum)_id=(?P<id>\d+)')
 punctuation_re = re.compile(r'([{}])'.format(string.punctuation))
 
 
@@ -55,7 +56,9 @@ def epoch_to_local(value):
 
 
 def crumb_to_forum_ref(value):
-    return 'forum_{forum_id}_{title}'.format(**value)
+    return TOCNode.make_ref(ref_prefix='forum',
+                            node_id=value['forum_id'],
+                            title=value['title'])
 
 
 def utc_to_local(utc_dt):
@@ -90,13 +93,17 @@ def get_jinja_env():
     return env
 
 
-def load_thread(thread_fn):
+def load_thread(thread_fn, load_pages=False):
     with codecs.open(thread_fn, 'r', 'utf-8') as f:
         thread = json.load(f)
+
     thread['title'] = thread['title'].strip()
     if not thread['title']:
         thread['title'] = 'untitled thread'
-    thread['ref'] = 'thread_{id}_{title}'.format(**thread)
+
+    if not load_pages:
+        return thread
+
     page_pattern = os.path.join(
         os.path.dirname(thread_fn),
         '{0}-*.json'.format(thread['id']))
@@ -120,23 +127,61 @@ def load_thread(thread_fn):
     return thread
 
 
-def render_thread(template, thread):
+def render_thread(template, thread, context):
+    prepare_thread(thread, context)
+    return template.render(ref=context['ref'], **thread)
+
+
+def prepare_thread(thread, context):
+    for text_collection, text_key in [
+            ('posts', 'post_text'),
+            ('comments', 'comment_text'),
+    ]:
+        for text in thread[text_collection]:
+            if text_key not in text:
+                continue
+            text[text_key] = replace_links(text[text_key], context)
     thread['comments_by_post'] = {
         key: list(comments)
         for key, comments in itertools.groupby(
                 thread['comments'], operator.itemgetter('post_id'))}
-    return template.render(**thread)
+
+
+def replace_links(s, context):
+    s = hyperlink_re.sub(lambda matchobj: url_for(matchobj, context), s)
+    return s
+
+
+def url_for(matchobj, context):
+    if matchobj.group('class_name') != context['class_name']:
+        return matchobj.group(0)
+    object_type = matchobj.group('type')
+    object_key = 'threads' if object_type == 'thread' else 'forums'
+    object_id = long(matchobj.group('id'))
+    if object_id not in context[object_key]:
+        return matchobj.group(0)
+    return os.path.relpath(
+        context[object_key][object_id].html_path,
+        context['dirname'])
 
 
 class TOCNode(dict):
     is_forum = False
+    ref_prefix = 'thread'
 
-    def __init__(self, node_id, ref, title, filename):
+    @classmethod
+    def make_ref(cls, **context):
+        return u'{ref_prefix}_{node_id}'.format(**context)
+
+    def __init__(self, node_id, title, path):
         super(TOCNode, self).__init__()
         self.node_id = node_id
-        self.ref = ref
         self.title = title
-        self.filename = filename
+        self.path = path
+        self.html_path = path.replace('rst', 'html')
+        self.basename, _ = os.path.splitext(os.path.basename(path))
+        self.ref = self.make_ref(ref_prefix=self.ref_prefix, **self.__dict__)
+
     def __lt__(self, other):
         return self.ref < other.ref
     def __le__(self, other):
@@ -153,6 +198,11 @@ class TOCNode(dict):
 
 class TOCForumNode(TOCNode):
     is_forum = True
+    ref_prefix = 'forum'
+
+    def __init__(self, *args, **kwargs):
+        super(TOCForumNode, self).__init__(*args, **kwargs)
+        self.basename = self.path.split(os.sep)[-2] if os.sep in self.path else ''
 
     def __lt__(self, other):
         if isinstance(other, TOCThreadNode):
@@ -191,24 +241,13 @@ class TOCThreadNode(TOCNode):
         return super(TOCThreadNode, self).__lt__(other)
 
 
-def generate_forum(class_name, verbose_dirs=False, max_threads=None):
+def build_toc_index(class_name, json_dir, rst_dir, max_threads=None):
     def format_thread_fn(thread_id, title, crumbs):
         filename = '%d_%s.rst' % (thread_id, utils.clean_filename(title))
         return os.path.join(rst_dir, *crumbs), filename
 
-    # render threads
-    env = get_jinja_env()
-    json_dir = get_json_dir(class_name, verbose_dirs)
-    rst_dir = get_rst_dir(class_name, verbose_dirs)
-    thread_template = env.get_template('forum/thread.rst')
-    index_template = env.get_template('forum/index.rst')
-
-    utils.mkdir_p(rst_dir)
-    with open(os.path.join(rst_dir, 'index.rst'), 'w') as f:
-        f.write(index_template.render(class_name=class_name))
-
-    toctrees = TOCForumNode(0, class_name, class_name, 'index')
-
+    root = TOCForumNode(0, class_name, 'index.html')
+    index = {'threads': {}, 'forums': {}}
     for i, json_fn in enumerate(glob.glob(os.path.join(json_dir, '*-1.json'))):
         if max_threads and i >= max_threads:
             break
@@ -223,18 +262,65 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
             [crumb['title'] for crumb in crumbs])
         utils.mkdir_p(base_dir)
         thread_fn = os.path.join(base_dir, filename)
-        with codecs.open(thread_fn, 'w', 'utf-8') as f:
-            f.write(render_thread(thread_template, thread))
-        # build toctree
-        basename, _ = os.path.splitext(filename)
-        toctree = toctrees
-        for subforum in crumbs:
+        thread_node = TOCThreadNode(thread['id'], thread['title'], thread_fn)
+        index['threads'][thread['id']] = thread_node
+
+        # build forum toctree
+        toctree = root
+        for i, subforum in enumerate(crumbs):
             forum_ref = crumb_to_forum_ref(subforum)
             if forum_ref not in toctree:
-                toctree[forum_ref] = TOCForumNode(subforum['forum_id'], forum_ref, subforum['title'], subforum['title'])
+                forum_node = TOCForumNode(
+                    subforum['forum_id'],
+                    subforum['title'],
+                    os.path.join(
+                        rst_dir, 
+                        *(map(operator.itemgetter('title'), crumbs[:i+1]) + ['index.rst'])),
+                )
+                toctree[forum_ref] = forum_node
+                index['forums'][subforum['forum_id']] = forum_node
             toctree = toctree[forum_ref]
-        toctree[thread['ref']] = TOCThreadNode(thread['id'], thread['ref'], thread['title'], basename)
-        logging.info('Wrote %s', thread_fn)
+        toctree[thread_node.ref] = thread_node
+
+        logging.info('Read %s', json_fn)
+    return root, index
+
+
+def generate_forum(class_name, verbose_dirs=False, max_threads=None):
+    # render threads
+    env = get_jinja_env()
+    json_dir = get_json_dir(class_name, verbose_dirs)
+    rst_dir = get_rst_dir(class_name, verbose_dirs)
+    thread_template = env.get_template('forum/thread.rst')
+    index_template = env.get_template('forum/index.rst')
+
+    utils.mkdir_p(rst_dir)
+
+    toctree, index = build_toc_index(
+        class_name,
+        json_dir=json_dir,
+        rst_dir=rst_dir,
+        max_threads=max_threads)
+    context = dict(
+        class_name=class_name,
+        **index)
+
+    for i, json_fn in enumerate(glob.glob(os.path.join(json_dir, '*-1.json'))):
+        if max_threads and i >= max_threads:
+            break
+        try:
+            thread = load_thread(json_fn, load_pages=True)
+        except ValueError:
+            continue
+        thread_node = index['threads'][thread['id']]
+        utils.mkdir_p(os.path.dirname(thread_node.path))
+        context['dirname'] = os.path.dirname(thread_node.html_path)
+        context['ref'] = thread_node.ref
+
+        with codecs.open(thread_node.path, 'w', 'utf-8') as f:
+            f.write(render_thread(thread_template, thread, context))
+
+        logging.info('Wrote %s', thread_node.path)
 
     def walk_tree(tree, path=[]):
         items = sorted([(v, k) for k, v in tree.iteritems()])
@@ -245,7 +331,7 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
             for tree, subpath, entries in walk_tree(subtree, path + [subtree]):
                 yield tree, subpath, entries
 
-    for tree, crumbs, entries in walk_tree(toctrees):
+    for tree, crumbs, entries in walk_tree(toctree):
         base_dir = os.path.join(rst_dir, *[node.title for node in crumbs])
         index_fn = os.path.join(base_dir, 'index.rst')
         with codecs.open(index_fn, 'w', 'utf-8') as f:
