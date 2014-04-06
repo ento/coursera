@@ -167,6 +167,7 @@ def url_for(matchobj, context):
 
 class TOCNode(dict):
     is_forum = False
+    is_root = False
     ref_prefix = 'thread'
 
     @classmethod
@@ -222,6 +223,10 @@ class TOCForumNode(TOCNode):
         return super(TOCForumNode, self).__lt__(other)
 
 
+class TOCRootNode(TOCForumNode):
+    is_root = True
+
+
 class TOCThreadNode(TOCNode):
     def __lt__(self, other):
         if isinstance(other, TOCForumNode):
@@ -246,7 +251,7 @@ def build_toc_index(class_name, json_dir, rst_dir, max_threads=None):
         filename = '%d_%s.rst' % (thread_id, utils.clean_filename(title))
         return os.path.join(rst_dir, *crumbs), filename
 
-    root = TOCForumNode(0, class_name, 'index.html')
+    root = TOCRootNode(0, class_name, 'index.html')
     index = {'threads': {}, 'forums': {}}
     for i, json_fn in enumerate(glob.glob(os.path.join(json_dir, '*-1.json'))):
         if max_threads and i >= max_threads:
@@ -325,19 +330,20 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
     def walk_tree(tree, path=[]):
         items = sorted([(v, k) for k, v in tree.iteritems()])
         yield tree, path, items
-        for subtree, ref in items:
-            if not subtree:
+        for node, ref in items:
+            if not node:
                 continue
-            for tree, subpath, entries in walk_tree(subtree, path + [subtree]):
-                yield tree, subpath, entries
+            for child, subpath, entries in walk_tree(node, path + [node]):
+                yield child, subpath, entries
 
-    for tree, crumbs, entries in walk_tree(toctree):
+    for node, crumbs, entries in walk_tree(toctree):
         base_dir = os.path.join(rst_dir, *[node.title for node in crumbs])
         index_fn = os.path.join(base_dir, 'index.rst')
         with codecs.open(index_fn, 'w', 'utf-8') as f:
             index = index_template.render(
-                ref=tree.ref,
-                title=tree.title,
+                is_root=node.is_root,
+                ref=node.ref,
+                title=node.title,
                 crumbs=crumbs,
                 entries=entries)
             f.write(index)

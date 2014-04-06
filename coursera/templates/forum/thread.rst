@@ -6,7 +6,8 @@
 {{ title|escape_punctuation }}
 {{ '=' * (title|length * 2) }}
 
-{%-for post in posts if 'post_text' in post and not post.deleted %}
+{% for tag in tags %}:tag:`{{ tag.tag_name }}` {% endfor %}
+{% for post in posts if 'post_text' in post and not post.deleted %}
   {{-render_post(post)-}}
   {%-if post.id in comments_by_post %}
     {%-for comment in comments_by_post[post.id] if 'comment_text' in comment and not comment.deleted %}

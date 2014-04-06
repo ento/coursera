@@ -1,4 +1,4 @@
-:doc:`/index`{% if crumbs %}{% for crumb in crumbs[:-1] %} / :ref:`{{ crumb.ref }}`{% endfor %}{% endif %}
+{% if not is_root %}:doc:`/index`{% if crumbs %}{% for crumb in crumbs[:-1] %} / :ref:`{{ crumb.ref }}`{% endfor %}{% endif %}{% endif %}
 
 .. _{{ ref }}:
 

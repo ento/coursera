@@ -43,3 +43,12 @@ form.search input {
     text-transform: uppercase;
     vertical-align: middle;
 }
+
+.tag {
+    background: #f7f7f7;
+    border-left: 5px solid #3a7293;
+    font-size: 12px;
+    font-weight: bold;
+    margin-right: 4px;
+    padding: 2px 4px 3px;
+}
