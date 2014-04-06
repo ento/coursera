@@ -4,15 +4,10 @@ Forum archive generator.
 
 todo:
 
-* readme
-* hyperlink
-  https://class.coursera.org/ml-004/forum/list?forum_id=10001
-  https://class.coursera.org/ml-004/forum/thread?thread_id=1129
 * retry on ssl handshake error
+* download all pages from long threads? (currently maxed at 10)
 * subforum filter?
 * forum ordering? (need to fetch forum info)
-* thread tags?
-* download all pages from long threads? (currently maxed at 10)
 '''
 
 import os
