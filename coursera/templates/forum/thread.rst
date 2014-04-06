@@ -3,8 +3,8 @@
 
 .. _{{ ref }}:
 
-{{ title }}
-{{ '=' * title|length }}
+{{ title|escape_punctuation }}
+{{ '=' * (title|length * 2) }}
 
 {%-for post in posts if 'post_text' in post and not post.deleted %}
   {{-render_post(post)-}}

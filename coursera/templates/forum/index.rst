@@ -2,8 +2,8 @@
 
 .. _{{ ref }}:
 
-{{ title }}
-{{ '=' * title|length }}
+{{ title|escape_punctuation }}
+{{ '=' * (title|length * 2) }}
 
 .. toctree::
    :maxdepth: 1

@@ -8,6 +8,7 @@ Test functionality of forum module.
 import os
 import json
 import unittest
+from nose.tools import ok_, eq_
 from mock import call, mock_open, MagicMock, patch
 
 from coursera import coursera_dl, downloaders, define, forum
@@ -167,3 +168,6 @@ class TestForum(unittest.TestCase):
             ['sphinx-build', '-b', 'html', 'rst', 'html'],
             cwd='forum',
         )
+
+    def test_escape_punctutation(self):
+        eq_('a\\*', forum.escape_punctuation('a*'))

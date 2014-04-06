@@ -17,10 +17,12 @@ todo:
 
 import os
 import datetime
+import re
 import glob
 import itertools
 import operator
 import codecs
+import string
 import json
 import logging
 import shutil
@@ -29,6 +31,13 @@ import calendar
 from jinja2 import Environment, PackageLoader, Markup, evalcontextfilter
 import markdown
 from . import utils
+
+
+punctuation_re = re.compile(r'([{}])'.format(string.punctuation))
+
+
+def escape_punctuation(s):
+    return punctuation_re.sub(r'\\\1', s)
 
 
 @evalcontextfilter
@@ -77,6 +86,7 @@ def get_jinja_env():
     env.filters['html'] = post_to_html
     env.filters['timestamp'] = epoch_to_local
     env.filters['forum_ref'] = crumb_to_forum_ref
+    env.filters['escape_punctuation'] = escape_punctuation
     return env
 
 
