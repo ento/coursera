@@ -358,4 +358,5 @@ def generate_forum(class_name, path='', verbose_dirs=False, max_threads=None):
             f.write(env.get_template(template_fn).render(class_name=class_name))
 
     # run sphinx-build
-    subprocess.call(['sphinx-build', '-b', 'html', 'rst', 'html'], cwd='forum')
+    subprocess.call(['sphinx-build', '-b', 'html', 'rst', 'html'],
+                    cwd=os.path.dirname(rst_dir))
