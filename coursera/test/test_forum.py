@@ -217,20 +217,12 @@ class TestForum(unittest.TestCase):
         thread['posts'] = thread['comments']
         context = {
             'class_name': self.class_name,
-            'path': 'Subforum/1_me.html',
+            'dirname': 'Subforum',
             'threads': {
-                10: {
-                    'path': '10_parent.html',
-                },
-                11: {
-                    'path': 'Parent Forum/11_cousin.html',
-                },
-                12: {
-                    'path': 'Subforum/12_sibling.html',
-                },
-                13: {
-                    'path': 'Subforum/Sibling Forum/13_nephew.html',
-                },
+                10: forum.TOCThreadNode(10, '', '10_parent.rst'),
+                11: forum.TOCThreadNode(11, '', 'Parent Forum/11_cousin.rst'),
+                12: forum.TOCThreadNode(12, '', 'Subforum/12_sibling.rst'),
+                13: forum.TOCThreadNode(13, '', 'Subforum/Sibling Forum/13_nephew.rst'),
             }
         }
         forum.prepare_thread(thread, context)
@@ -280,20 +272,12 @@ class TestForum(unittest.TestCase):
         thread['posts'] = thread['comments']
         context = {
             'class_name': self.class_name,
-            'path': 'Subforum/1_me.html',
+            'dirname': 'Subforum',
             'forums': {
-                10: {
-                    'path': 'Parent Forum/index.html',
-                },
-                11: {
-                    'path': 'Parent Forum/Cousin Forum/index.html',
-                },
-                12: {
-                    'path': 'Subforum/Sibling Forum/index.html',
-                },
-                13: {
-                    'path': 'Subforum/Sibling Forum/Nephew Forum/index.html',
-                },
+                10: forum.TOCForumNode(10, '', 'Parent Forum/index.rst'),
+                11: forum.TOCForumNode(11, '', 'Parent Forum/Cousin Forum/index.rst'),
+                12: forum.TOCForumNode(12, '', 'Subforum/Sibling Forum/index.rst'),
+                13: forum.TOCForumNode(13, '', 'Subforum/Sibling Forum/Nephew Forum/index.rst'),
             }
         }
         forum.prepare_thread(thread, context)
