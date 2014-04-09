@@ -349,6 +349,8 @@ def generate_forum(class_name, path='', verbose_dirs=False, max_threads=None):
             ('forum/conf.py', ['conf.py']),
             ('forum/custom.css', ['_static', 'custom.css']),
             ('forum/layout.html', ['_templates', 'layout.html']),
+            ('forum/Makefile', ['Makefile']),
+            ('forum/make.bat', ['make.bat']),
     ]:
         dest = os.path.join(rst_dir, *dest_fn)
         utils.mkdir_p(os.path.dirname(dest))

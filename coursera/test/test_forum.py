@@ -171,6 +171,8 @@ class TestForum(unittest.TestCase):
         open_mock.assert_any_call(os.path.join(base_dir, 'index.rst'), 'w', 'utf-8')
         # should write sphinx conf
         open_mock.assert_any_call(os.path.join(base_dir, 'conf.py'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(base_dir, 'Makefile'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(base_dir, 'make.bat'), 'w', 'utf-8')
         # should invoke sphinx-build
         call_mock.assert_called_once_with(
             ['sphinx-build', '-b', 'html', 'rst', 'html'],
