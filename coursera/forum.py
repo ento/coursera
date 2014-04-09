@@ -64,19 +64,20 @@ def utc_to_local(utc_dt):
     return local_dt.replace(microsecond=utc_dt.microsecond)
 
 
-def get_forum_dir(class_name, stage, verbose_dirs=False):
+def get_forum_dir(class_name, stage, path='', verbose_dirs=False):
     parts = ['forum', stage]
     if verbose_dirs:
         parts.insert(0, class_name.upper())
+    parts.insert(0, path)
     return os.path.join(*parts)
 
 
-def get_json_dir(class_name, verbose_dirs=False):
-    return get_forum_dir(class_name, 'json', verbose_dirs)
+def get_json_dir(class_name, path='', verbose_dirs=False):
+    return get_forum_dir(class_name, 'json', path, verbose_dirs)
 
 
-def get_rst_dir(class_name, verbose_dirs=False):
-    return get_forum_dir(class_name, 'rst', verbose_dirs)
+def get_rst_dir(class_name, path='', verbose_dirs=False):
+    return get_forum_dir(class_name, 'rst', path, verbose_dirs)
 
 
 def get_jinja_env():
@@ -286,11 +287,11 @@ def build_toc_index(class_name, json_dir, rst_dir, max_threads=None):
     return root, index
 
 
-def generate_forum(class_name, verbose_dirs=False, max_threads=None):
+def generate_forum(class_name, path='', verbose_dirs=False, max_threads=None):
     # render threads
     env = get_jinja_env()
-    json_dir = get_json_dir(class_name, verbose_dirs)
-    rst_dir = get_rst_dir(class_name, verbose_dirs)
+    json_dir = get_json_dir(class_name, path, verbose_dirs)
+    rst_dir = get_rst_dir(class_name, path, verbose_dirs)
     thread_template = env.get_template('forum/thread.rst')
     index_template = env.get_template('forum/index.rst')
 
@@ -349,7 +350,7 @@ def generate_forum(class_name, verbose_dirs=False, max_threads=None):
             ('forum/custom.css', ['_static', 'custom.css']),
             ('forum/layout.html', ['_templates', 'layout.html']),
     ]:
-        dest = os.path.join('forum', 'rst', *dest_fn)
+        dest = os.path.join(rst_dir, *dest_fn)
         utils.mkdir_p(os.path.dirname(dest))
         with codecs.open(dest, 'w', 'utf-8') as f:
             f.write(env.get_template(template_fn).render(class_name=class_name))

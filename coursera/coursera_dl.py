@@ -441,6 +441,7 @@ class EndOfForumError(Exception): pass
 
 def download_forum(downloader,
                    class_name,
+                   path='',
                    verbose_dirs=False,
                    from_thread_id=None,
                    sleep_interval=3,
@@ -448,7 +449,7 @@ def download_forum(downloader,
     """
     Download all forum threads.
     """
-    json_dir = get_json_dir(class_name, verbose_dirs)
+    json_dir = get_json_dir(class_name, path, verbose_dirs)
     if not os.path.isdir(json_dir):
         os.makedirs(json_dir)
     thread_id = from_thread_id or 1
@@ -865,12 +866,14 @@ def download_class(args, class_name):
         completed = completed and download_forum(
             downloader,
             class_name,
+            args.path,
             args.verbose_dirs,
             args.from_thread_id,
         )
     if args.forum_viewer:
         completed = completed and generate_forum(
             class_name,
+            args.path,
             args.verbose_dirs,
         )
     if args.lecture:

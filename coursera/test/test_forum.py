@@ -21,8 +21,9 @@ class TestForum(unittest.TestCase):
         self.class_name = 'ml-001'
 
     def _run_download_forum(self,
-                             download_side_effect,
-                             open_read_data):
+                            download_side_effect,
+                            open_read_data,
+                            **kwargs):
         # setup mocks
         download_mock = MagicMock(side_effect=download_side_effect)
         open_mock = mock_open(read_data=open_read_data)
@@ -35,15 +36,15 @@ class TestForum(unittest.TestCase):
                 self.class_name,
                 verbose_dirs=True,
                 sleep_interval=None,
-            )
+                **kwargs)
         yield download_mock, open_mock
 
-    def assert_single_download_call(self, download_mock):
+    def assert_single_download_call(self, download_mock, path_prefix=''):
         download_mock.assert_called_once_with(
             define.THREAD_URL.format(
                 class_name=self.class_name,
                 thread_id=1),
-            'ML-001/forum/json/1-1.json')
+            os.path.join(path_prefix, 'ML-001/forum/json/1-1.json'))
 
     def assert_two_download_calls(self, download_mock):
         download_mock.assert_has_calls([
@@ -135,23 +136,30 @@ class TestForum(unittest.TestCase):
         ):
             self.assert_single_download_call(download_mock)
 
+    def test_thread_download_path(self):
+        for download_mock, open_mock in self._run_download_forum(
+                download_side_effect=[''],
+                open_read_data='Unexpected API error',
+                path='custom_path',
+        ):
+            self.assert_single_download_call(download_mock, 'custom_path')
+
     def test_generate_forum(self):
-        fixture_dir = os.path.join(os.path.dirname(__file__), 'fixtures', 'forum')
-        json_dir = os.path.join(fixture_dir, 'json')
+        fixture_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
+        json_dir = os.path.join(fixture_dir, 'forum', 'json')
         json_fn = os.path.join(json_dir, '1-1.json')
         json_fn_2 = os.path.join(json_dir, '1-2.json')
         with open(json_fn) as f:
             open_mock = mock_open(read_data=f.read())
         call_mock = MagicMock()
-        with patch('coursera.forum.get_json_dir', return_value=json_dir),\
-             patch('codecs.open', open_mock),\
+        with patch('codecs.open', open_mock),\
              patch('os.path.isdir', return_value=False),\
              patch('os.path.isfile', return_value=False),\
              patch('coursera.utils.mkdir_p'),\
              patch('subprocess.call', call_mock):
-            forum.generate_forum(self.class_name)
+            forum.generate_forum(self.class_name, path=fixture_dir)
         # should write rst file
-        base_dir = os.path.join('forum', 'rst')
+        base_dir = os.path.join(fixture_dir, 'forum', 'rst')
         open_mock.assert_any_call(json_fn, 'r', 'utf-8')
         print open_mock.mock_calls
         open_mock.assert_any_call(json_fn_2, 'r', 'utf-8')
