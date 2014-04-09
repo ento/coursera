@@ -310,6 +310,10 @@ class NativeDownloader(Downloader):
             return False
 
 
+def is_native_downloader(downloader):
+    return isinstance(downloader, NativeDownloader)
+
+
 def get_downloader(session, class_name, args):
     """
     Decides which downloader to use.

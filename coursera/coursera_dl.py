@@ -42,6 +42,7 @@ Legalese:
 import argparse
 import datetime
 import json
+import gzip
 import logging
 import os
 import re
@@ -75,7 +76,7 @@ from .cookies import (
     get_cookies_for_class, make_cookie_values)
 from .credentials import get_credentials, CredentialsError
 from .define import CLASS_URL, ABOUT_URL, THREAD_URL, PATH_CACHE
-from .downloaders import get_downloader
+from .downloaders import get_downloader, is_native_downloader
 from .forum import get_json_dir, generate_forum
 from .utils import clean_filename, get_anchor_format, mkdir_p, fix_url
 
@@ -437,6 +438,7 @@ def download_lectures(downloader,
 
 
 class EndOfForumError(Exception): pass
+class NotJSONError(Exception): pass
 
 
 def download_forum(downloader,
@@ -485,11 +487,17 @@ def download_thread(downloader, class_name, thread_id, base_dir, max_pages=10, s
     def format_json_fn(thread_id, page):
         return '%d-%d.json' % (thread_id, page)
 
+    def ungzip(thread_fn):
+        if not os.path.isfile(thread_fn):
+            return
+        with gzip.open(thread_fn, 'rb') as f:
+            response = f.read()
+        with open(thread_fn, 'w') as f:
+            f.write(response)
+
     def check_end_of_forum(thread_fn):
         if not os.path.isfile(thread_fn):
             return
-        # if native downloader:
-        #with gzip.open(part.name, 'rb') as f:
         with open(thread_fn, 'rb') as f:
             first_char = f.read(1)
             if first_char[0] == '{':
@@ -500,7 +508,7 @@ def download_thread(downloader, class_name, thread_id, base_dir, max_pages=10, s
                 return
             if 'Unexpected API error' in response:
                 raise EndOfForumError()
-            raise Exception('Not a JSON or a known error response: %s' % response)
+            raise NotJSONError('Not a JSON or a known error response: %s' % response)
 
     def get_next_post_id(thread):
         placeholder = None
@@ -511,22 +519,33 @@ def download_thread(downloader, class_name, thread_id, base_dir, max_pages=10, s
                 break
         return None if not placeholder else placeholder['id']
 
+    def download(url, dest, should_ungzip):
+        sleep()
+        downloader.download(url, dest)
+        if should_ungzip:
+            ungzip(dest)
+
     thread_url = THREAD_URL.format(
         class_name=class_name,
         thread_id=thread_id)
     page = 1
     next_post_id = None
+    should_ungzip = is_native_downloader(downloader)
     while page <= max_pages:
         thread_fn = os.path.join(base_dir, format_json_fn(thread_id, page))
         query = ''
         if next_post_id:
             query = '?post_id={0}&position=after'.format(next_post_id)
         if not os.path.exists(thread_fn):
-            sleep()
-            downloader.download(thread_url + query, thread_fn)
+            download(thread_url + query, thread_fn, should_ungzip)
         logging.info('Downloaded %s', thread_fn)
         if page == 1:
-            check_end_of_forum(thread_fn)
+            try:
+                check_end_of_forum(thread_fn)
+            except NotJSONError:
+                # retry once in case something went utterly wrong
+                download(thread_url + query, thread_fn, should_ungzip)
+                check_end_of_forum(thread_fn)
         try:
             with open(thread_fn) as f:
                 thread = json.load(f)
