@@ -795,6 +795,14 @@ def parseArgs():
         logging.basicConfig(level=logging.INFO,
                             format='%(message)s')
 
+    # check at least one download target is specified
+    targets = ('about', 'lecture', 'forum', 'forum_viewer')
+    if not any(map(lambda target: getattr(args, target), targets)):
+        options = ['--' + target.replace('_', '-') for target in targets]
+        logging.error('Please specify one of: %s',
+                      ', '.join(options))
+        sys.exit(1)
+
     # turn list of strings into list
     args.file_formats = args.file_formats.split()
 
