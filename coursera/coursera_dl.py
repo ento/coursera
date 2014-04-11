@@ -446,7 +446,8 @@ def download_forum(downloader,
                    path='',
                    verbose_dirs=False,
                    from_thread_id=None,
-                   sleep_interval=3,
+                   wait_time=3,
+                   wait_time_fluctuation=3,
                    ):
     """
     Download all forum threads.
@@ -463,7 +464,8 @@ def download_forum(downloader,
                 class_name,
                 thread_id,
                 json_dir,
-                sleep_interval=sleep_interval,
+                wait_time=wait_time,
+                wait_time_fluctuation=wait_time_fluctuation,
             )
         except EndOfForumError:
             complete = True
@@ -477,10 +479,18 @@ def download_forum(downloader,
     return complete
 
 
-def download_thread(downloader, class_name, thread_id, base_dir, max_pages=10, sleep_interval=3):
+def download_thread(downloader,
+                    class_name,
+                    thread_id,
+                    base_dir,
+                    max_pages=10,
+                    wait_time=3,
+                    wait_time_fluctuation=3):
     def sleep():
-        if sleep_interval:
-            secs = sleep_interval + random.randint(0, sleep_interval)
+        if wait_time:
+            secs = wait_time
+            if wait_time_fluctuation:
+                secs += random.randint(0, wait_time_fluctuation)
             logging.debug('Sleeping %d secs', secs)
             time.sleep(secs)
 
@@ -741,6 +751,21 @@ def parseArgs():
                         action='store_true',
                         default=False,
                         help='for debugging: skip actual downloading of files')
+    parser.add_argument('--wait-time',
+                        dest='wait_time',
+                        type=int,
+                        default=3,
+                        help='wait time between http requests (for forum threads)')
+    parser.add_argument('--wait-time-fluctuation',
+                        dest='wait_time_fluctuation',
+                        type=int,
+                        default=3,
+                        help='max of random seconds to add to the wait time')
+    parser.add_argument('--retry-count',
+                        dest='retry_count',
+                        type=int,
+                        default=5,
+                        help='number of retries to attempt (for native downloader)')
     parser.add_argument('--path',
                         dest='path',
                         action='store',
@@ -896,6 +921,8 @@ def download_class(args, class_name):
             args.path,
             args.verbose_dirs,
             args.from_thread_id,
+            args.wait_time,
+            args.wait_time_fluctuation,
         )
     if args.forum_viewer:
         completed = completed and generate_forum(

@@ -261,15 +261,16 @@ class NativeDownloader(Downloader):
     :param session: Requests session.
     """
 
-    def __init__(self, session):
+    def __init__(self, session, retry_count=5):
         self.session = session
+        self.retry_count = retry_count
 
     def _start_download(self, url, filename):
         logging.info('Downloading %s -> %s', url, filename)
 
         attempts_count = 0
         error_msg = ''
-        while attempts_count < 5:
+        while attempts_count < self.retry_count:
             r = self.session.get(url, stream=True)
 
             if r.status_code is not 200:
@@ -304,7 +305,7 @@ class NativeDownloader(Downloader):
             r.close()
             return True
 
-        if attempts_count == 5:
+        if attempts_count == self.retry_count:
             logging.warn('Skipping, can\'t download file ...')
             logging.error(error_msg)
             return False
@@ -330,4 +331,4 @@ def get_downloader(session, class_name, args):
         if getattr(args, bin):
             return class_(session, bin=getattr(args, bin))
 
-    return NativeDownloader(session)
+    return NativeDownloader(session, args.retry_count)
