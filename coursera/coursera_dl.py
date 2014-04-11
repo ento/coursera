@@ -470,7 +470,12 @@ def download_forum(downloader,
         except EndOfForumError:
             complete = True
             break
+        except NotJSONError:
+            # skip this thread
+            thread_id += 1
         except Exception, e:
+            import traceback
+            traceback.print_exc()
             logging.error('Error downloading thread %d: %r', thread_id, e)
             break
         else:
@@ -510,7 +515,7 @@ def download_thread(downloader,
             return
         with open(thread_fn, 'rb') as f:
             first_char = f.read(1)
-            if first_char[0] == '{':
+            if len(first_char) > 0 and first_char[0] == '{':
                 return
             f.seek(0)
             response = f.read()
