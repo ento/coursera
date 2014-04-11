@@ -297,6 +297,19 @@ def generate_forum(class_name, path='', verbose_dirs=False, max_threads=None):
 
     utils.mkdir_p(rst_dir)
 
+    # copy conf
+    for template_fn, dest_fn in [
+            ('forum/conf.py', ['conf.py']),
+            ('forum/custom.css', ['_static', 'custom.css']),
+            ('forum/layout.html', ['_templates', 'layout.html']),
+            ('forum/Makefile', ['Makefile']),
+            ('forum/make.bat', ['make.bat']),
+    ]:
+        dest = os.path.join(rst_dir, *dest_fn)
+        utils.mkdir_p(os.path.dirname(dest))
+        with codecs.open(dest, 'w', 'utf-8') as f:
+            f.write(env.get_template(template_fn).render(class_name=class_name))
+
     toctree, index = build_toc_index(
         class_name,
         json_dir=json_dir,
@@ -343,19 +356,6 @@ def generate_forum(class_name, path='', verbose_dirs=False, max_threads=None):
                 crumbs=crumbs,
                 entries=entries)
             f.write(index)
-
-    # copy conf
-    for template_fn, dest_fn in [
-            ('forum/conf.py', ['conf.py']),
-            ('forum/custom.css', ['_static', 'custom.css']),
-            ('forum/layout.html', ['_templates', 'layout.html']),
-            ('forum/Makefile', ['Makefile']),
-            ('forum/make.bat', ['make.bat']),
-    ]:
-        dest = os.path.join(rst_dir, *dest_fn)
-        utils.mkdir_p(os.path.dirname(dest))
-        with codecs.open(dest, 'w', 'utf-8') as f:
-            f.write(env.get_template(template_fn).render(class_name=class_name))
 
     # run sphinx-build
     subprocess.call(' '.join(['sphinx-build', '-b', 'html', 'rst', 'html']),
