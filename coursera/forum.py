@@ -244,7 +244,7 @@ class TOCThreadNode(TOCNode):
 
 def build_toc_index(class_name, json_dir, rst_dir, max_threads=None):
     def format_thread_fn(thread_id, title, crumbs):
-        filename = '%d_%s.rst' % (thread_id, utils.clean_filename(title))
+        filename = '%d_%s.rst' % (thread_id, utils.clean_filename(title)[:100])
         return os.path.join(rst_dir, *crumbs), filename
 
     root = TOCRootNode(0, class_name, 'index.html')
