@@ -93,9 +93,14 @@ def load_thread(thread_fn, load_pages=False):
     with codecs.open(thread_fn, 'r', 'utf-8') as f:
         thread = json.load(f)
 
-    thread['title'] = thread['title'].strip()
+    thread['title'] = thread.get('title', '').strip()
     if not thread['title']:
         thread['title'] = 'untitled thread'
+
+    for crumb in thread.get('crumbs', []):
+        crumb['title'] = crumb.get('title', '').strip()
+        if not crumb['title']:
+            crumb['title'] = 'untitled forum'
 
     if not load_pages:
         return thread

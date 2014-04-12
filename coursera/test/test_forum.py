@@ -161,7 +161,6 @@ class TestForum(unittest.TestCase):
         # should write rst file
         base_dir = os.path.join(fixture_dir, 'forum', 'rst')
         open_mock.assert_any_call(json_fn, 'r', 'utf-8')
-        print open_mock.mock_calls
         open_mock.assert_any_call(json_fn_2, 'r', 'utf-8')
         open_mock.assert_any_call(os.path.join(base_dir, 'Video Lectures', 'Week 5 Lectures', '1_Egg_and_me.rst'), 'w', 'utf-8')
         # should write subforum index
@@ -178,6 +177,21 @@ class TestForum(unittest.TestCase):
             ['sphinx-build', '-b', 'html', 'rst', 'html'],
             cwd='forum',
         )
+
+    def test_load_thread_strips_whitespaces(self):
+        thread_data = {
+            'title': ' ',
+            'crumbs': [
+                {'title': '  no whitespace around me '},
+                {'title': '   '},
+            ]
+        }
+        open_mock = mock_open(read_data=json.dumps(thread_data))
+        with patch('codecs.open', open_mock):
+            thread = forum.load_thread('test.json')
+        eq_('untitled thread', thread['title'])
+        eq_('no whitespace around me', thread['crumbs'][0]['title'])
+        eq_('untitled forum', thread['crumbs'][1]['title'])
 
     def test_prepare_thread_thread_hyperlinking(self):
         thread = {
