@@ -96,11 +96,13 @@ def load_thread(thread_fn, load_pages=False):
     thread['title'] = thread.get('title', '').strip()
     if not thread['title']:
         thread['title'] = 'untitled thread'
+    thread['fssafe_title'] = utils.clean_filename(thread['title'])
 
     for crumb in thread.get('crumbs', []):
         crumb['title'] = crumb.get('title', '').strip()
         if not crumb['title']:
             crumb['title'] = 'untitled forum'
+        crumb['fssafe_title'] = utils.clean_filename(crumb['title'], True)
 
     if not load_pages:
         return thread
@@ -248,11 +250,14 @@ class TOCThreadNode(TOCNode):
 
 
 def build_toc_index(class_name, json_dir, rst_dir, max_threads=None):
-    def format_thread_fn(thread_id, title, crumbs):
+    def format_thread_fn(thread_id, title, *crumbs):
         filename = '%d_%s.rst' % (thread_id, utils.clean_filename(title)[:100])
         return os.path.join(rst_dir, *crumbs), filename
 
-    root = TOCRootNode(0, class_name, 'index.html')
+    def format_forum_fn(*crumbs):
+        return os.path.join(rst_dir, *crumbs), 'index.rst'
+
+    root = TOCRootNode(0, class_name, os.path.join(*format_forum_fn()))
     index = {'threads': {}, 'forums': {}}
     for i, json_fn in enumerate(glob.glob(os.path.join(json_dir, '*-1.json'))):
         if max_threads and i >= max_threads:
@@ -264,8 +269,8 @@ def build_toc_index(class_name, json_dir, rst_dir, max_threads=None):
         crumbs = thread['crumbs'][1:]
         base_dir, filename = format_thread_fn(
             thread['id'],
-            thread['title'],
-            [crumb['title'] for crumb in crumbs])
+            thread['fssafe_title'],
+            *[crumb['fssafe_title'] for crumb in crumbs])
         utils.mkdir_p(base_dir)
         thread_fn = os.path.join(base_dir, filename)
         thread_node = TOCThreadNode(thread['id'], thread['title'], thread_fn)
@@ -279,9 +284,7 @@ def build_toc_index(class_name, json_dir, rst_dir, max_threads=None):
                 forum_node = TOCForumNode(
                     subforum['forum_id'],
                     subforum['title'],
-                    os.path.join(
-                        rst_dir, 
-                        *(map(operator.itemgetter('title'), crumbs[:i+1]) + ['index.rst'])),
+                    os.path.join(*format_forum_fn(*[crumb['fssafe_title'] for crumb in crumbs[:i+1]])),
                 )
                 toctree[forum_ref] = forum_node
                 index['forums'][subforum['forum_id']] = forum_node
@@ -346,14 +349,13 @@ def generate_forum(class_name, path='', verbose_dirs=False, max_threads=None):
         yield tree, path, items
         for node, ref in items:
             if not node:
+                # a thread node
                 continue
             for child, subpath, entries in walk_tree(node, path + [node]):
                 yield child, subpath, entries
 
     for node, crumbs, entries in walk_tree(toctree):
-        base_dir = os.path.join(rst_dir, *[node.title for node in crumbs])
-        index_fn = os.path.join(base_dir, 'index.rst')
-        with codecs.open(index_fn, 'w', 'utf-8') as f:
+        with codecs.open(node.path, 'w', 'utf-8') as f:
             index = index_template.render(
                 is_root=node.is_root,
                 ref=node.ref,

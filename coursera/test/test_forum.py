@@ -35,7 +35,7 @@ class TestForum(unittest.TestCase):
                 self.downloader,
                 self.class_name,
                 verbose_dirs=True,
-                sleep_interval=None,
+                wait_time=None,
                 **kwargs)
         yield download_mock, open_mock
 
@@ -159,30 +159,32 @@ class TestForum(unittest.TestCase):
              patch('subprocess.call', call_mock):
             forum.generate_forum(self.class_name, path=fixture_dir)
         # should write rst file
-        base_dir = os.path.join(fixture_dir, 'forum', 'rst')
+        forum_dir = os.path.join(fixture_dir, 'forum')
+        rst_dir = os.path.join(forum_dir, 'rst')
         open_mock.assert_any_call(json_fn, 'r', 'utf-8')
         open_mock.assert_any_call(json_fn_2, 'r', 'utf-8')
-        open_mock.assert_any_call(os.path.join(base_dir, 'Video Lectures', 'Week 5 Lectures', '1_Egg_and_me.rst'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'Video Lectures', 'Week 5 Lectures', '1_Egg_and_me.rst'), 'w', 'utf-8')
         # should write subforum index
-        open_mock.assert_any_call(os.path.join(base_dir, 'Video Lectures', 'Week 5 Lectures', 'index.rst'), 'w', 'utf-8')
-        open_mock.assert_any_call(os.path.join(base_dir, 'Video Lectures', 'index.rst'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'Video Lectures', 'Week 5 Lectures', 'index.rst'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'Video Lectures', 'index.rst'), 'w', 'utf-8')
         # should write global index
-        open_mock.assert_any_call(os.path.join(base_dir, 'index.rst'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'index.rst'), 'w', 'utf-8')
         # should write sphinx conf
-        open_mock.assert_any_call(os.path.join(base_dir, 'conf.py'), 'w', 'utf-8')
-        open_mock.assert_any_call(os.path.join(base_dir, 'Makefile'), 'w', 'utf-8')
-        open_mock.assert_any_call(os.path.join(base_dir, 'make.bat'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'conf.py'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'Makefile'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'make.bat'), 'w', 'utf-8')
         # should invoke sphinx-build
         call_mock.assert_called_once_with(
-            ['sphinx-build', '-b', 'html', 'rst', 'html'],
-            cwd='forum',
+            'sphinx-build -b html rst html',
+            shell=True,
+            cwd=forum_dir,
         )
 
-    def test_load_thread_strips_whitespaces(self):
+    def test_load_thread_strips_whitespaces_etc(self):
         thread_data = {
             'title': ' ',
             'crumbs': [
-                {'title': '  no whitespace around me '},
+                {'title': '  no: whitespace around me '},
                 {'title': '   '},
             ]
         }
@@ -190,7 +192,8 @@ class TestForum(unittest.TestCase):
         with patch('codecs.open', open_mock):
             thread = forum.load_thread('test.json')
         eq_('untitled thread', thread['title'])
-        eq_('no whitespace around me', thread['crumbs'][0]['title'])
+        eq_('no: whitespace around me', thread['crumbs'][0]['title'])
+        eq_('no- whitespace around me', thread['crumbs'][0]['fssafe_title'])
         eq_('untitled forum', thread['crumbs'][1]['title'])
 
     def test_prepare_thread_thread_hyperlinking(self):
