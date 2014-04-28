@@ -184,7 +184,7 @@ class TestForum(unittest.TestCase):
         thread_data = {
             'title': ' ',
             'crumbs': [
-                {'title': '  no: whitespace around me '},
+                {'title': '  no: whitespace around me?\<>*?|:;" '},
                 {'title': '   '},
             ]
         }
@@ -192,8 +192,8 @@ class TestForum(unittest.TestCase):
         with patch('codecs.open', open_mock):
             thread = forum.load_thread('test.json')
         eq_('untitled thread', thread['title'])
-        eq_('no: whitespace around me', thread['crumbs'][0]['title'])
-        eq_('no- whitespace around me', thread['crumbs'][0]['fssafe_title'])
+        eq_('no: whitespace around me?\<>*?|:;"', thread['crumbs'][0]['title'])
+        eq_('no- whitespace around me----------', thread['crumbs'][0]['fssafe_title'])
         eq_('untitled forum', thread['crumbs'][1]['title'])
 
     def test_prepare_thread_thread_hyperlinking(self):
