@@ -17,6 +17,11 @@ if six.PY3:  # pragma: no cover
 else:
     from urlparse import urlparse
 
+try:
+    from unidecode import unidecode
+except ImportError:
+    unidecode = lambda s: s
+
 
 unsafe_chars_re = re.compile(r'[\\:*?;"<>|^/\x00]')
 
@@ -39,6 +44,7 @@ def clean_filename(s, minimal_change=False):
     s = re.sub(r"\([^\(]*$", '', s)
     s = s.replace('nbsp', '')
     s = s.strip().replace(' ', '_')
+    s = unidecode(s).replace('[?]', '-')
     valid_chars = '-_.()%s%s' % (string.ascii_letters, string.digits)
     return ''.join(c for c in s if c in valid_chars)
 

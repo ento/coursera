@@ -102,7 +102,7 @@ def load_thread(thread_fn, load_pages=False):
         crumb['title'] = crumb.get('title', '').strip()
         if not crumb['title']:
             crumb['title'] = 'untitled forum'
-        crumb['fssafe_title'] = utils.clean_filename(crumb['title'], True)
+        crumb['fssafe_title'] = utils.clean_filename(crumb['title'])
 
     if not load_pages:
         return thread

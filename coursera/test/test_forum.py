@@ -163,10 +163,10 @@ class TestForum(unittest.TestCase):
         rst_dir = os.path.join(forum_dir, 'rst')
         open_mock.assert_any_call(json_fn, 'r', 'utf-8')
         open_mock.assert_any_call(json_fn_2, 'r', 'utf-8')
-        open_mock.assert_any_call(os.path.join(rst_dir, 'Video Lectures', 'Week 5 Lectures', '1_Egg_and_me.rst'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'Video_Lectures', 'Week_5_Lectures', '1_Egg_and_me.rst'), 'w', 'utf-8')
         # should write subforum index
-        open_mock.assert_any_call(os.path.join(rst_dir, 'Video Lectures', 'Week 5 Lectures', 'index.rst'), 'w', 'utf-8')
-        open_mock.assert_any_call(os.path.join(rst_dir, 'Video Lectures', 'index.rst'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'Video_Lectures', 'Week_5_Lectures', 'index.rst'), 'w', 'utf-8')
+        open_mock.assert_any_call(os.path.join(rst_dir, 'Video_Lectures', 'index.rst'), 'w', 'utf-8')
         # should write global index
         open_mock.assert_any_call(os.path.join(rst_dir, 'index.rst'), 'w', 'utf-8')
         # should write sphinx conf
@@ -186,6 +186,7 @@ class TestForum(unittest.TestCase):
             'crumbs': [
                 {'title': '  no: whitespace around me?\<>*?|:;/"^ '},
                 {'title': '   '},
+                {'title': u'\u2211a\u2099'},
             ]
         }
         open_mock = mock_open(read_data=json.dumps(thread_data))
@@ -193,8 +194,9 @@ class TestForum(unittest.TestCase):
             thread = forum.load_thread('test.json')
         eq_('untitled thread', thread['title'])
         eq_('no: whitespace around me?\<>*?|:;/"^', thread['crumbs'][0]['title'])
-        eq_('no- whitespace around me------------', thread['crumbs'][0]['fssafe_title'])
+        eq_('no-_whitespace_around_me------------', thread['crumbs'][0]['fssafe_title'])
         eq_('untitled forum', thread['crumbs'][1]['title'])
+        eq_('-a-', thread['crumbs'][2]['fssafe_title'])
 
     def test_prepare_thread_thread_hyperlinking(self):
         thread = {
