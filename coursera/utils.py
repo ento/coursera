@@ -18,7 +18,7 @@ else:
     from urlparse import urlparse
 
 
-unsafe_chars_re = re.compile(r'[\\:*?;"<>|\x00]')
+unsafe_chars_re = re.compile(r'[\\:*?;"<>|^/\x00]')
 
 
 def clean_filename(s, minimal_change=False):
